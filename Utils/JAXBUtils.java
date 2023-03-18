@@ -8,7 +8,7 @@ import javax.xml.bind.Unmarshaller;
 
 /**
  *
- * @author Roberto Santos Cordeiro 53610423E
+ * @author Roberto Santos Cordeiro
  * @param <T>
  */
 public class JAXBUtils<T> {
