@@ -14,7 +14,7 @@ import java.util.ArrayList;
 
 /**
  *
- * @author Roberto Santos Cordeiro 53610423E
+ * @author Roberto Santos Cordeiro
  */
 public class SQLServerUtils {
 
