@@ -26,7 +26,7 @@ import org.xml.sax.SAXParseException;
 
 /**
  *
- * @author Roberto Santos Cordeiro 53610423E
+ * @author Roberto Santos Cordeiro
  */
 public class DOMUtils {
 
