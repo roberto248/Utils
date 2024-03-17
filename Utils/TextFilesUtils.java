@@ -9,6 +9,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -19,27 +20,49 @@ import java.util.regex.Pattern;
  */
 public class TextFilesUtils {
 
-    private final String RUTA;
-    private final File ARCHIVO;
+    /**
+     * Se usa para verificar el nombre del archivo. Este no puede contener
+     * caracteres prohibidos ni estar compuesto por espacios en blanco.
+     */
+    private final String SIMBOLOS_PROHIBIDOS_REGEX = "^(?!\\s*$)[^\\\\/:?\"<>|]+$";
+    private final String SIMBOLOS_PROHIBIDOS_RUTA_REGEX = "^(?!\\s*$)[^:?\"<>|]+$";
 
     private boolean adjuntar;
+    private File archivo;
+    private String ruta;
 
-    // CONSTRUCTOR
+    // CONSTRUCTORES ===========================================================
     public TextFilesUtils(String ruta) {
-        this.RUTA = ruta;
-        this.ARCHIVO = new File(ruta);
+        // Comprobando que la ruta es válida.
+        if (ruta.matches(SIMBOLOS_PROHIBIDOS_RUTA_REGEX)) {
+            throw new IllegalArgumentException("La ruta no es válida.");
+        }
+
+        this.archivo = new File(ruta);
+        this.ruta = ruta;
+        this.adjuntar = true;
+    }
+
+    public TextFilesUtils(File file) {
+        this.ruta = file.getAbsolutePath();
+
+        // Comprobando que la ruta es válida.
+        if (ruta.matches(SIMBOLOS_PROHIBIDOS_RUTA_REGEX)) {
+            throw new IllegalArgumentException("La ruta no es válida.");
+        }
+
+        this.archivo = file;
         this.adjuntar = true;
     }
 
     // MÉTODOS =================================================================
-    
     /**
-     * Elimina el archivo indicado en el constructor.
+     * Elimina el archivo indicado en la constante RUTA.
      *
      * @return true si el archivo ha sido borrado; false en caso contrario.
      */
     public boolean borrar() {
-        return ARCHIVO.delete();
+        return archivo.delete();
     }
 
     /**
@@ -93,6 +116,93 @@ public class TextFilesUtils {
     }
 
     /**
+     * El método realiza una copia de todos los datos del archivo y los escribe
+     * en un nuevo archivo de texto.
+     *
+     * @param file
+     * @return Devuelve un objeto del tipo TextFilesUtils que apunta al nuevo
+     * archivo de copia.
+     */
+    public TextFilesUtils copiar(File file) {
+        String[] lineas = leerLineasTexto();
+        TextFilesUtils copia = new TextFilesUtils(file);
+        copia.escribirVariasLineas(lineas);
+
+        return copia;
+    }
+
+    /**
+     * El método realiza una copia de todos los datos del archivo y los escribe
+     * en un nuevo archivo de texto.
+     *
+     * @param path ruta de la copia.
+     * @return Devuelve un objeto del tipo TextFilesUtils que apunta al nuevo
+     * archivo de copia.
+     */
+    public TextFilesUtils copiar(String path) {
+        File file = new File(path);
+        // Si el archivo ya existe se creará un archivo de copia nuevo.
+        if (file.exists()) {
+            file = new File(genPathCopy(path));
+        }
+
+        return copiar(file);
+    }
+
+    /**
+     * El método realiza una copia de todos los datos del archivo y los escribe
+     * en un nuevo archivo de texto.
+     *
+     * @return Devuelve un objeto del tipo TextFilesUtils que apunta al nuevo
+     * archivo de copia.
+     */
+    public TextFilesUtils copiar() {
+        return copiar(genPathCopy(ruta));
+    }
+
+    /**
+     * Elimina la linea indicada como parámetro del archivo.
+     *
+     * @param linea número de linea que se eliminara. Debe estar entre 1 y N.
+     * @return true si la eliminación fue exitosa, false si no lo fue.
+     */
+    public boolean eliminarLinea(int linea) {
+        ArrayList<String> lineas = new ArrayList<>(Arrays.asList(leerLineasTexto()));
+
+        if (linea > 0 && linea < numLineas()) {
+            lineas.remove(linea - 1); // Ajustar a la linea indicada
+        }
+
+        return reescribirArchivo(lineas.toArray(new String[0]));
+    }
+
+    /**
+     * Elimina las lineas indicadas en el Array pasado como parámetro del
+     * archivo.
+     *
+     * @param indexes números de las lineas que se eliminarán. Deben estar entre
+     * 1 y N.
+     * @return true si la eliminación fue exitosa, false si no lo fue.
+     */
+    public boolean eliminarVariasLinea(Integer[] indexes) {
+        ArrayList<String> lineas = new ArrayList<>(Arrays.asList(leerLineasTexto()));
+
+        // Ordenando el array de indices y revirtiendolo...
+        Collections.sort(Arrays.asList(indexes));
+        Collections.reverse(Arrays.asList(indexes));
+
+        // eliminando las líneas desde el final del archivo.
+        for (int index : indexes) {
+            if (index > 0 && index < numLineas()) {
+                lineas.remove(index - 1); // Ajustar a la linea indicada
+            }
+
+        }
+
+        return reescribirArchivo(lineas.toArray(new String[0]));
+    }
+
+    /**
      * Escribe en el archivo una nueva línea con el texto pasado como parámetro.
      * Si el archivo no existe se creará.
      *
@@ -103,7 +213,7 @@ public class TextFilesUtils {
     public boolean escribirLinea(String texto) {
         boolean escrituraOk = true;
 
-        try (BufferedWriter out = new BufferedWriter(new FileWriter(ARCHIVO, adjuntar))) {
+        try (BufferedWriter out = new BufferedWriter(new FileWriter(archivo, adjuntar))) {
             out.write(texto);
             out.newLine(); // Salto de línea.
 
@@ -122,30 +232,57 @@ public class TextFilesUtils {
      * @return true => La escritura se realizó correctamente.<br>
      * false => Ha ocurrido un error. Puede que la escritura no se realizara.
      */
-    public boolean escribirVariasLinea(String[] lineas) {
+    public boolean escribirVariasLineas(String[] lineas) {
         boolean escrituraOk = true;
 
-        try (BufferedWriter out = new BufferedWriter(new FileWriter(ARCHIVO, adjuntar))) {
-
-            for (String linea : lineas) {
-                out.write(linea);
-                out.newLine(); // Salto de línea.
+        for (String linea : lineas) {
+            /* El if hará la escritura de la linea y a la vez comprobará que ha
+            salido bien. De no ser así se frenará el bucle y se devolverá un false.*/
+            if (!escribirLinea(linea)) {
+                escrituraOk = false;
+                break;
             }
-
-        } catch (IOException e) {
-            escrituraOk = false;
         }
 
         return escrituraOk;
     }
 
     /**
-     * Comprueba si el archivo indicado en el constructor existe.
+     * Comprueba si el archivo indicado en la constante RUTA existe.
      *
      * @return true si el archivo existe; false en caso contrario.
      */
     public boolean existe() {
-        return ARCHIVO.exists();
+        return archivo.exists();
+    }
+
+    /**
+     * Este método genera un nuevo nombre para un archivo copiado construye una
+     * nueva ruta que apunta al mismo. La sintaxis del nuevo nombre será:
+     * "nombre - copia (n).dat" siendo n el número de copias que ya existen.
+     *
+     * @param path
+     * @return
+     */
+    private String genPathCopy(String path) {
+        String nuevaRuta;
+        int i = 1; // Indica el número de copia repetida con el mismo nombre.
+        do {
+
+            // Esta linea comprueba el tipo de ruta.
+            String tipoBarra = (path.contains("/")) ? "/" : "\\";
+            // Construyendo el nuevo nombre de la copia.
+            String nombre = getNombre().substring(0, getNombre().lastIndexOf("."))
+                    + " - copia" + ((i == 1) ? "" : " (" + i + ")")
+                    + getNombre().substring(getNombre().lastIndexOf("."));
+            // Construyendo la ruta al archivo con el nuevo nombre.
+            nuevaRuta = path.substring(0, path.lastIndexOf(tipoBarra) + 1)
+                    + nombre;
+            i++;
+            // Aumentará el número de la copia mientras existan otras con número mas bajo.
+        } while (new File(nuevaRuta).exists());
+
+        return nuevaRuta;
     }
 
     /**
@@ -154,7 +291,7 @@ public class TextFilesUtils {
      */
     public void imprimirTexto() {
         if (existe()) {
-            try (BufferedReader in = new BufferedReader(new FileReader(ARCHIVO))) {
+            try (BufferedReader in = new BufferedReader(new FileReader(archivo))) {
                 String linea = in.readLine();
 
                 while (linea != null) {
@@ -173,27 +310,23 @@ public class TextFilesUtils {
     }
 
     /**
-     * Este método inserta una línea de texto en la posicion indicada como 
+     * Este método inserta una línea de texto en la posicion indicada como
      * párametro. De 1 a n.
+     *
      * @param posicion Posición en el archivo en el que se incluirá la línea.
      * @param texto Texto que se escribirá en el archivo.
-     * @return true si la escritura se realiza correctamente, 
-     * false en caso contrario.
+     * @return true si la escritura se realiza correctamente, false en caso
+     * contrario.
      */
     public boolean insertarLineaEnPosicion(int posicion, String texto) {
-        boolean resultOK = false;
-        ArrayList<String> lineas;
-        
+        ArrayList<String> lineas = new ArrayList<>(Arrays.asList(leerLineasTexto()));
+
         // Si la posicion a insertar es correcta...
         if (posicion > 0 && posicion <= numLineas()) {
-            lineas = new ArrayList<>(Arrays.asList(leerLineasTexto()));
-
             lineas.add(posicion - 1, texto);
-            
-            resultOK = reescribirArchivo(lineas.toArray(new String[lineas.size()]));
         }
 
-        return resultOK;
+        return reescribirArchivo(lineas.toArray(new String[lineas.size()]));
     }
 
     /**
@@ -204,7 +337,7 @@ public class TextFilesUtils {
      */
     public String leerLineaNum(int numLinea) {
         String linea = "";
-        
+
         // Si es numero de linea es correcto...
         if (numLinea > 0 && numLinea <= numLineas()) {
             String[] lineasTexto = leerLineasTexto();
@@ -240,7 +373,7 @@ public class TextFilesUtils {
 
         // Si el archivo existe se leerá.
         if (existe()) {
-            try (BufferedReader in = new BufferedReader(new FileReader(ARCHIVO))) {
+            try (BufferedReader in = new BufferedReader(new FileReader(archivo))) {
                 linea = in.readLine();
 
                 while (linea != null) {
@@ -356,7 +489,7 @@ public class TextFilesUtils {
      * @return Peso del fichero en bytes.
      */
     public long peso() {
-        return ARCHIVO.length();
+        return archivo.length();
     }
 
     /**
@@ -388,23 +521,85 @@ public class TextFilesUtils {
      * misma ruta. El nuevo archivo contendrá el nuevo texto pasado como
      * párametro.
      *
-     * @param lineas Array de String con el texto por el que se sustituirá. Cada
-     * posición del Array se corresponde con cada línea del archivo.
+     * @param lineas Array de String con el texto por el que se sustituirá el
+     * original. Cada posición del Array se corresponde con cada línea del
+     * archivo.
      * @return true si la reescritura a salido correctamente, false en caso
      * contrario.
      */
     public boolean reescribirArchivo(String[] lineas) {
         borrar();
-        return escribirVariasLinea(lineas);
+        return escribirVariasLineas(lineas);
+    }
+
+    /**
+     * Este método cambia el nombre del archivo por uno nuevo pasado como
+     * parámetro.
+     *
+     * @param nuevoNombre El nombre nuevo que se le dará al archivo.
+     * @return true si se pudo cambiar el nombre, false si no se pudo.
+     */
+    public boolean renombrar(String nuevoNombre) {
+        boolean renombreOk;
+
+        // Si el nuevo nombre NO contiene símbolos prohibidos...
+        if (valNombreArchivo(nuevoNombre)) {
+            String[] lineas = leerLineasTexto();
+            // Esta linea comprueba el tipo de ruta.
+            String tipoBarra = (ruta.contains("/")) ? "/" : "\\";
+            // Asegurando que el nuevo nombre incluye la extensión.
+            nuevoNombre = (nuevoNombre.endsWith(".txt"))
+                    ? nuevoNombre : nuevoNombre + ".txt";
+            // Construyendo la ruta al archivo con el nuevo nombre.
+            String nuevaRuta = ruta.substring(0, ruta.lastIndexOf(tipoBarra) + 1)
+                    + nuevoNombre;
+
+            borrar();
+            ruta = nuevaRuta;
+            archivo = new File(nuevaRuta);
+            renombreOk = escribirVariasLineas(lineas);
+
+        } else {
+            renombreOk = false;
+        }
+
+        return renombreOk;
+    }
+
+    /**
+     * Comprueba que el nombre de archivo pasado como parámetro es válido. Esto
+     * incluye que no contenga caracteres prohibidos, y que no este compuesto
+     * exclusivamete por espacios en blanco.
+     *
+     * @param nombre Nombre que se comprobará.
+     * @return true si el nombre es valido, false en caso contrario.
+     */
+    private boolean valNombreArchivo(String nombre) {
+        boolean nombreOk;
+        if (nombre.matches(SIMBOLOS_PROHIBIDOS_REGEX)) {
+            nombreOk = true;
+        } else {
+            System.out.println("Los nombres de archivo no pueden contener "
+                    + "ninguno de los siguientes caracteres: "
+                    + "\n\t\\ / : * ? \" < > |");
+            nombreOk = false;
+        }
+        return nombreOk;
     }
 
     // GETTERS =================================================================
-    public String getRUTA() {
-        return RUTA;
+    public String getRuta() {
+        return ruta;
     }
 
-    public File getARCHIVO() {
-        return ARCHIVO;
+    public File getArchivo() {
+        return archivo;
+    }
+
+    public String getNombre() {
+        // Esta linea comprueba el tipo de ruta.
+        String tipoBarra = (ruta.contains("/")) ? "/" : "\\";
+        return ruta.substring(ruta.lastIndexOf(tipoBarra) + 1);
     }
 
     // SETTERS =================================================================
