@@ -84,7 +84,7 @@ public class BinaryFilesUtils {
     }
 
     /**
-     * Elimina el archivo indicado en la constante RUTA.
+     * Elimina el archivo indicado en la variable ruta.
      *
      * @return true si el archivo ha sido borrado; false en caso contrario.
      */
@@ -102,9 +102,9 @@ public class BinaryFilesUtils {
      * @throws IOException
      */
     public BinaryFilesUtils copiar(File file) throws IOException {
-        Object[] datos = leerDatos();
+        Object[] datos = leerTodo();
         BinaryFilesUtils copia = new BinaryFilesUtils(file);
-        copia.escribirVariosDatos(datos);
+        copia.escribirTodo(datos);
 
         return copia;
     }
@@ -148,8 +148,8 @@ public class BinaryFilesUtils {
      * @return true si el eliminado ha salido correctamente, false en caso
      * contrario.
      */
-    public boolean eliminarDato(Object dato) {
-        ArrayList<Object> datos = new ArrayList<>(Arrays.asList(leerDatos()));
+    public boolean eliminar(Object dato) {
+        ArrayList<Object> datos = new ArrayList<>(Arrays.asList(leerTodo()));
         boolean centinela = false;
 
         for (int i = 0; i < datos.size() && !centinela; i++) {
@@ -162,17 +162,39 @@ public class BinaryFilesUtils {
 
         return reescribirArchivo(datos.toArray());
     }
+    
+    /**
+     * Este método elimina el dato que ocupa la posicion pasada como parámetro.
+     * 
+     * @param posicion Posición que ocupa el dato que se eliminará. Este debe
+     * ser un número entero entre 1 y n.
+     * @return true si la eliminación se completó correctamente, false en caso
+     * contrario.
+     */
+    public boolean eliminarEnPosicion(int posicion) {
+        boolean borradoOk = false;
+        
+        // Si la posicion es correcta...
+        if(posicion > 0 && posicion <= numDatos()){
+            // Se leen los datos, se elimina el indicado y se reescribe el archivo.
+            ArrayList<Object> datos = new ArrayList<>(Arrays.asList(leerTodo()));
+            datos.remove(posicion - 1);
+            borradoOk = reescribirArchivo(datos.toArray());
+        }
+        
+        return borradoOk;
+    }
 
     /**
-     * Elimina todas las ocurrencia del dato pasado como parámetro y reescribe
+     * Elimina todas las ocurrencias del dato pasado como parámetro y reescribe
      * el archivo sin ellos.
      *
      * @param dato Dato que se buscará para eliminar.
      * @return true si el eliminado ha salido correctamente, false en caso
      * contrario.
      */
-    public boolean eliminarTodoDato(Object dato) {
-        ArrayList<Object> datos = new ArrayList<>(Arrays.asList(leerDatos()));
+    public boolean eliminarTodo(Object dato) {
+        ArrayList<Object> datos = new ArrayList<>(Arrays.asList(leerTodo()));
 
         for (int i = 0; i < datos.size(); i++) {
 
@@ -192,7 +214,7 @@ public class BinaryFilesUtils {
      * @return true => La escritura se realizó correctamente.<br>
      * false => Ha ocurrido un error. Puede que la escritura no se realizara.
      */
-    public boolean escribirDato(Object dato) {
+    public boolean escribir(Object dato) {
         boolean escrituraOk = true;
         Class<?> dataClass = dato.getClass();
 
@@ -244,19 +266,26 @@ public class BinaryFilesUtils {
         return escrituraOk;
     }
 
-    public boolean escribirVariosDatos(Object[] datos) {
+    /**
+     * Este método escribe en el archivo binario una serie de datos pasados como
+     * parámetro en un array de Object.
+     * @param datos array de objetos que se escribiran en el archivo.
+     * @return true si la escritura de todos los datos se ha realizado correctamente,
+     * false en caso contrario.
+     */
+    public boolean escribirTodo(Object[] datos) {
         boolean escrituraOk = true;
 
         for (Object dato : datos) {
             /* El if hará la escritura del objeto y a la vez comprobará que ha
             salido bien. De no ser así se frenará el bucle y se devolverá un false.*/
-            if (!escribirDato(dato)) {
+            if (!escribir(dato)) {
                 escrituraOk = false;
                 break;
             }
         }
 
-        return true;
+        return escrituraOk;
     }
 
     /**
@@ -298,19 +327,7 @@ public class BinaryFilesUtils {
     }
 
     /**
-     * Imprime por pantalla la clase y el mensaje de la excepción pasada como
-     * parámetro con un fondo de color rojo y letras en blanco para que resalte
-     * más en consola.
-     *
-     * @param e Exception que se imprimirá por pantalla.
-     */
-    private void printException(Exception e) {
-        System.out.println("\u001B[41m\u001B[37m " + e.getClass()
-                + " \n " + e.getMessage() + " \u001B[0m\n");
-    }
-
-    /**
-     * En base al byte pasado como parametro, el método sabrá que tipo de dato
+     * En base al byte pasado como parámetro, el método sabrá que tipo de dato
      * se leerá a continuación, recogerá ese dato y lo devolverá.
      *
      * @param etiqueta Byte que se usa para determinar que tipo de dato se leerá
@@ -367,44 +384,12 @@ public class BinaryFilesUtils {
     }
 
     /**
-     * Este método lee el archivo de principio a fin y devuelve un Object[] con
-     * el contenido del mismo.
-     *
-     * @return Object[] Array de objetos con todos los datos guardados en el
-     * archivo.
-     */
-    public Object[] leerDatos() {
-        ArrayList<Object> dataList = new ArrayList<>();
-
-        if (existe()) {
-            try (ObjectInputStream in = new ObjectInputStream(
-                    new FileInputStream(archivo))) {
-
-                while (true) {
-                    /* Lee el byte etiqueta, lee el siguiente dato del archivo 
-                    y lo añade al array */
-                    dataList.add(leerDato(in.readByte(), in));
-                }
-
-            } catch (EOFException e) {
-                // No es necesario realizar ninguna acción aqui.
-            } catch (IOException ex) {
-                System.out.println("Error al leer el archivo.");
-            } catch (Exception e) {
-                printException(e);
-            }
-        }
-
-        return dataList.toArray(new Object[0]);
-    }
-
-    /**
      * Este método devuelve el dato en la posicion que pasada como parámetro.
      * La posición debe estar entre 1 y N.
      * @param posicion Posición en el archivo del dato que se quiere leer.
      * @return Dato leido en la posicion especificada.
      */
-    public Object leerDatoEnPosicion(int posicion) {
+    public Object leerEnPosicion(int posicion) {
         Object obj = null;
         
         // Si el archivo existe y la posición es correcta...
@@ -435,11 +420,43 @@ public class BinaryFilesUtils {
     }
     
     /**
+     * Este método lee el archivo de principio a fin y devuelve un Object[] con
+     * el contenido del mismo.
+     *
+     * @return Object[] Array de objetos con todos los datos guardados en el
+     * archivo.
+     */
+    public Object[] leerTodo() {
+        ArrayList<Object> dataList = new ArrayList<>();
+
+        if (existe()) {
+            try (ObjectInputStream in = new ObjectInputStream(
+                    new FileInputStream(archivo))) {
+
+                while (true) {
+                    /* Lee el byte etiqueta, lee el siguiente dato del archivo 
+                    y lo añade al array */
+                    dataList.add(leerDato(in.readByte(), in));
+                }
+
+            } catch (EOFException e) {
+                // No es necesario realizar ninguna acción aqui.
+            } catch (IOException ex) {
+                System.out.println("Error al leer el archivo.");
+            } catch (Exception e) {
+                printException(e);
+            }
+        }
+
+        return dataList.toArray(new Object[0]);
+    }
+
+    /**
      * Indica la cantidad de datos que están escritos en el archivo.
      * @return 
      */
     public int numDatos(){
-        return leerDatos().length;
+        return leerTodo().length;
     }
 
     /**
@@ -450,18 +467,30 @@ public class BinaryFilesUtils {
     public long peso() {
         return archivo.length();
     }
+    
+    /**
+     * Imprime por pantalla la clase y el mensaje de la excepción pasada como
+     * parámetro con un fondo de color rojo y letras en blanco para que resalte
+     * más en consola.
+     *
+     * @param e Exception que se imprimirá por pantalla.
+     */
+    private void printException(Exception e) {
+        System.out.println("\u001B[41m\u001B[37m " + e.getClass()
+                + " \n " + e.getMessage() + " \u001B[0m\n");
+    }
 
     /**
-     * Reemplaza la primera ocurrencia que encuentre del dato especificado con
+     * Reemplaza la primera ocurrencia del dato especificado con
      * un dato nuevo pasado como parámetro.
      *
-     * @param objAntiguo dato que se buscara para reemplazar.
+     * @param objAntiguo dato que se buscará para reemplazar.
      * @param objNuevo nuevo dato por el que reemplazará el antiguo.
      * @return true si se consigue reemplazar correctamente, false en caso
      * contrario.
      */
     public boolean reemplazar(Object objAntiguo, Object objNuevo) {
-        Object[] datos = leerDatos();
+        Object[] datos = leerTodo();
         boolean centinela = false;
 
         for (int i = 0; i < datos.length && !centinela; i++) {
@@ -479,13 +508,13 @@ public class BinaryFilesUtils {
      * Reemplaza todas las ocurrencias que encuentre del dato especificado con
      * un dato nuevo pasado como parámetro.
      *
-     * @param objAntiguo dato que se buscara para reemplazar.
+     * @param objAntiguo dato que se buscará para reemplazar.
      * @param objNuevo nuevo dato por el que reemplazará el antiguo.
      * @return true si se consigue reemplazar correctamente, false en caso
      * contrario.
      */
     public boolean reemplazarTodo(Object objAntiguo, Object objNuevo) {
-        Object[] datos = leerDatos();
+        Object[] datos = leerTodo();
 
         for (int i = 0; i < datos.length; i++) {
 
@@ -508,7 +537,7 @@ public class BinaryFilesUtils {
 
         // Si el nuevo nombre NO contiene símbolos prohibidos...
         if (valNombreArchivo(nuevoNombre)) {
-            Object[] datos = leerDatos();
+            Object[] datos = leerTodo();
             // Esta linea comprueba el tipo de ruta.
             String tipoBarra = (ruta.contains("/")) ? "/" : "\\";
             // Asegurando que el nuevo nombre incluye la extensión.
@@ -521,7 +550,7 @@ public class BinaryFilesUtils {
             borrar();
             ruta = nuevaRuta;
             archivo = new File(nuevaRuta);
-            renombreOk = escribirVariosDatos(datos);
+            renombreOk = escribirTodo(datos);
         } else {
             renombreOk = false;
         }
@@ -541,7 +570,7 @@ public class BinaryFilesUtils {
      */
     public boolean reescribirArchivo(Object[] objetos) {
         borrar();
-        return escribirVariosDatos(objetos);
+        return escribirTodo(objetos);
     }
 
     /**

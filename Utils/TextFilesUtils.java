@@ -57,7 +57,7 @@ public class TextFilesUtils {
 
     // MÉTODOS =================================================================
     /**
-     * Elimina el archivo indicado en la constante RUTA.
+     * Elimina el archivo indicado en la variable ruta.
      *
      * @return true si el archivo ha sido borrado; false en caso contrario.
      */
